@@ -515,21 +515,21 @@ $userId = az ad signed-in-user show --query id -o tsv
 $userdisplayname = az ad signed-in-user show --query displayName -o tsv 
 az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location  --enable-ad-only-auth --external-admin-principal-type User --external-admin-name $userdisplayname --external-admin-sid $userId --output $azCliOutput
 Write-host "      ➡️ Set minimalTlsVersion to 1.2"
-az sql server update --name $SQLServerName --resource-group $ResourceGroupForDeployment --set minimalTlsVersion="1.2" --enable-public-network true
-# Write-host "      ➡️ Add SQL Server Firewall rules"
-# az sql server firewall-rule create --resource-group $ResourceGroupForDeployment --server $SQLServerName -n AllowAzureIP --start-ip-address "0.0.0.0" --end-ip-address "0.0.0.0" --output $azCliOutput
-# if ($env:ACC_CLOUD -eq $null){
-#     Write-host "      ➡️ Running in local environment - Add current IP to firewall"
-# 	$publicIp = (Invoke-WebRequest -uri "https://api.ipify.org").Content
-#     az sql server firewall-rule create --resource-group $ResourceGroupForDeployment --server $SQLServerName -n AllowIP --start-ip-address "$publicIp" --end-ip-address "$publicIp" --output $azCliOutput
-# }
+az sql server update --name $SQLServerName --resource-group $ResourceGroupForDeployment --set minimalTlsVersion="1.2" --enable-public-network Enabled
+Write-host "      ➡️ Add SQL Server Firewall rules"
+az sql server firewall-rule create --resource-group $ResourceGroupForDeployment --server $SQLServerName -n AllowAzureIP --start-ip-address "0.0.0.0" --end-ip-address "0.0.0.0" --output $azCliOutput
+if ($env:ACC_CLOUD -eq $null){
+    Write-host "      ➡️ Running in local environment - Add current IP to firewall"
+	$publicIp = (Invoke-WebRequest -uri "https://api.ipify.org").Content
+    az sql server firewall-rule create --resource-group $ResourceGroupForDeployment --server $SQLServerName -n AllowIP --start-ip-address "$publicIp" --end-ip-address "$publicIp" --output $azCliOutput
+}
 
 Write-host "      ➡️ Create SQL DB"
 az sql db create --resource-group $ResourceGroupForDeployment --server $SQLServerName --name $SQLDatabaseName  --edition Standard  --capacity 10 --zone-redundant false --output $azCliOutput
 
 Write-host "   🔵 KeyVault"
 Write-host "      ➡️ Create KeyVault"
-az keyvault create --name $KeyVault --resource-group $ResourceGroupForDeployment --enable-rbac-authorization false  --public-network-access Disabled --enable-purge-protection true --output $azCliOutput
+az keyvault create --name $KeyVault --resource-group $ResourceGroupForDeployment --enable-rbac-authorization false  --public-network-access Enabled --enable-purge-protection true --output $azCliOutput
 Write-host "      ➡️ Add Secrets"
 az keyvault secret set --vault-name $KeyVault --name ADApplicationSecret --value="$ADApplicationSecret" --output $azCliOutput
 az keyvault secret set --vault-name $KeyVault --name DefaultConnection --value $Connection --output $azCliOutput
