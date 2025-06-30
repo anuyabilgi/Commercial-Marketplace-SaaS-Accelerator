@@ -513,7 +513,9 @@ az network vnet subnet create --resource-group $ResourceGroupForDeployment --vne
 Write-host "      ➡️ Create Sql Server"
 $userId = az ad signed-in-user show --query id -o tsv 
 $userdisplayname = az ad signed-in-user show --query displayName -o tsv 
-az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location --admin-user "ocebSaasUser" --admin-password "EndpointTest01" --output $azCliOutput
+Write-host " userId for login - $userId & user display name for login - $userdisplayname"
+az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location  --enable-ad-only-auth --external-admin-principal-type User --external-admin-name $userdisplayname --external-admin-sid $userId --output $azCliOutput
+#az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location --admin-user "ocebSaasUser" --admin-password "EndpointTest01" --output $azCliOutput
 Write-host "      ➡️ Set minimalTlsVersion to 1.2"
 az sql server update --name $SQLServerName --resource-group $ResourceGroupForDeployment --set minimalTlsVersion="1.2" --enable-public-network Enabled
 Write-host "      ➡️ Add SQL Server Firewall rules"
@@ -575,13 +577,18 @@ Write-host "      ➡️ Generate SQL schema/data script"
 Set-Content -Path ../src/AdminSite/appsettings.Development.json -value "{`"ConnectionStrings`": {`"DefaultConnection`":`"$Connection`"}}"
 dotnet-ef migrations script  --output script.sql --idempotent --context SaaSKitContext --project ../src/DataAccess/DataAccess.csproj --startup-project ../src/AdminSite/AdminSite.csproj
 Write-host "      ➡️ Execute SQL schema/data script"
-$dbaccesstoken = (Get-AzAccessToken -ResourceUrl https://database.windows.net).Token
-Invoke-Sqlcmd -InputFile ./script.sql -ServerInstance $ServerUri -database $SQLDatabaseName -username "ocebSaasUser" -password "EndpointTest01"
-
+$dbaccesstoken = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+        (Get-AzAccessToken -ResourceUrl https://database.windows.net).Token
+    )
+)
+Write-Host "access-token - $dbaccesstoken"
+#Invoke-Sqlcmd -InputFile ./script.sql -ServerInstance $ServerUri -database $SQLDatabaseName -username "ocebSaasUser" -password "EndpointTest01"
+Invoke-Sqlcmd -InputFile ./script.sql -ServerInstance $ServerUri -database $SQLDatabaseName -AccessToken $dbaccesstoken
 Write-host "      ➡️ Execute SQL script to Add WebApps"
 $AddAppsIdsToDB = "CREATE USER [$WebAppNameAdmin] FROM EXTERNAL PROVIDER;ALTER ROLE db_datareader ADD MEMBER  [$WebAppNameAdmin];ALTER ROLE db_datawriter ADD MEMBER  [$WebAppNameAdmin]; GRANT EXEC TO [$WebAppNameAdmin]; CREATE USER [$WebAppNamePortal] FROM EXTERNAL PROVIDER;ALTER ROLE db_datareader ADD MEMBER [$WebAppNamePortal];ALTER ROLE db_datawriter ADD MEMBER [$WebAppNamePortal]; GRANT EXEC TO [$WebAppNamePortal];"
-Invoke-Sqlcmd -Query $AddAppsIdsToDB -ServerInstance $ServerUri -database $SQLDatabaseName -username "ocebSaasUser" -password "EndpointTest01"
-
+#Invoke-Sqlcmd -Query $AddAppsIdsToDB -ServerInstance $ServerUri -database $SQLDatabaseName -username "ocebSaasUser" -password "EndpointTest01"
+Invoke-Sqlcmd -Query $AddAppsIdsToDB -ServerInstance $ServerUri -database $SQLDatabaseName -AccessToken $dbaccesstoken
 Write-host "   🔵 Deploy Code to Admin Portal"
 az webapp deploy --resource-group $ResourceGroupForDeployment --name $WebAppNameAdmin --src-path "../Publish/AdminSite.zip" --type zip --output $azCliOutput
 
