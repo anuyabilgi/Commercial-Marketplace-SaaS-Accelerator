@@ -517,7 +517,7 @@ Write-host " userId for login - $userId & user display name for login - $userdis
 az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location  --enable-ad-only-auth --external-admin-principal-type User --external-admin-name $userdisplayname --external-admin-sid $userId --output $azCliOutput
 #az sql server create --name $SQLServerName --resource-group $ResourceGroupForDeployment --location $Location --admin-user "ocebSaasUser" --admin-password "EndpointTest01" --output $azCliOutput
 Write-host "      ➡️ Set minimalTlsVersion to 1.2"
-az sql server update --name $SQLServerName --resource-group $ResourceGroupForDeployment --set minimalTlsVersion="1.2" --enable-public-network Enabled
+az sql server update --name $SQLServerName --resource-group $ResourceGroupForDeployment --set minimalTlsVersion="1.2" --enable-public-network true
 Write-host "      ➡️ Add SQL Server Firewall rules"
 az sql server firewall-rule create --resource-group $ResourceGroupForDeployment --server $SQLServerName -n AllowAzureIP --start-ip-address "0.0.0.0" --end-ip-address "0.0.0.0" --output $azCliOutput
 if ($env:ACC_CLOUD -eq $null){
